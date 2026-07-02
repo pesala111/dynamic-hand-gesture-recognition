@@ -1,3 +1,11 @@
+"""
+Gesture recognition model training and evaluation pipeline.
+Builds and trains a ResNet-3D (r3d_18) model on the hand gesture dataset
+with data augmentation (rotation, translation), trains with early stopping,
+and evaluates on a held-out test set.
+
+Note: Update `root_dir` to point to your local dataset directory before running.
+"""
 import os
 import cv2
 import numpy as np
