@@ -1,54 +1,111 @@
 """
-This code is designed to evaluate the performance of the trained model in real-time scenarios.
+Real-time gesture inference using a trained ResNet-3D model and MediaPipe hand tracking.
+Preprocesses a gesture video by extracting hand landmark frames, then runs the model
+to predict the gesture class.
+
+Usage:
+    python inference_model.py --model_path gesture_model.pth \
+                               --video_path /path/to/gesture_video.avi \
+                               --num_classes 17
 """
 import cv2
 import os
+import argparse
 import numpy as np
 import torch
+import torch.nn as nn
 from torchvision import transforms
 import torchvision.models as models
-import torch.nn as nn
+from torchvision.models.video import R3D_18_Weights
 import HandTrackingModule as htm
 import math
 
 
-# ResNet3D model class
+# Gesture classes in sorted order (must match training label assignment)
+GESTURE_CLASSES = [
+    '01_Horizontal_swiping',
+    '02_Swiping_Up',
+    '03_Swiping_Down',
+    '04_V_Swiping_Left',
+    '05_V_Swiping_Right',
+    '06_V_Swiping_Up',
+    '07_V_Swiping_Down',
+    '08_Pointing',
+    '09_Pulling',
+    '10_Palm_Opening',
+    '11_Palm_Shake',
+    '12_Peace_Sign',
+    '13_Three_Finger_Open',
+    '14_Pushing',
+    '15_CW_Rotation',
+    '16_CCW_Rotation',
+    '17_Five_Finger_Closure',
+]
+
+# Build label_to_int from the sorted class list (matches recognition_model.py)
+LABEL_TO_INT = {cls: idx for idx, cls in enumerate(GESTURE_CLASSES)}
+INT_TO_LABEL = {idx: cls for cls, idx in LABEL_TO_INT.items()}
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Run gesture inference on a video file.")
+    parser.add_argument(
+        "--model_path",
+        type=str,
+        required=True,
+        help="Path to the trained model weights (.pth file).",
+    )
+    parser.add_argument(
+        "--video_path",
+        type=str,
+        required=True,
+        help="Path to the input gesture video file.",
+    )
+    parser.add_argument(
+        "--num_classes",
+        type=int,
+        default=17,
+        help="Number of gesture classes the model was trained on (default: 17).",
+    )
+    return parser.parse_args()
+
+
 class ResNet3D(nn.Module):
-    def __init__(self, num_classes):
+    """ResNet-3D model with Dropout classification head (matches training architecture)."""
+
+    def __init__(self, num_classes, dropout_prob=0.5):
         super(ResNet3D, self).__init__()
-
-        # Loading the pre-trained ResNet3D model
-        self.resnet3d = models.video.r3d_18(pretrained=True)
-
+        self.resnet3d = models.video.r3d_18(weights=R3D_18_Weights.DEFAULT)
         num_features = self.resnet3d.fc.in_features
-
-        # No dropout layer, just the Linear layer
-        self.resnet3d.fc = nn.Linear(num_features, num_classes)
+        self.resnet3d.fc = nn.Sequential(
+            nn.Dropout(dropout_prob),
+            nn.Linear(num_features, num_classes),
+        )
 
     def forward(self, x):
         return self.resnet3d(x)
 
-# Initialize hand detector
-detector = htm.handDetector(detectionCon=1)
 
-
-# Load trained model function
-def load_model(model_path, num_classes=6):
+def load_model(model_path, num_classes=17):
+    """Load trained ResNet3D weights from model_path."""
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model = ResNet3D(num_classes)
-    model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
+    model.load_state_dict(torch.load(model_path, map_location=device))
+    model.to(device)
     model.eval()
-    return model
+    return model, device
 
-fingScaleVal = 0
-widthCap, heightCap = 640, 460
-pTime = 0
 
-# Preprocess video
 def preprocess_video(video_path):
+    """Extract landmark frames from video_path and return a normalised tensor."""
+    detector = htm.HandDetector(detectionCon=1)
+
+    fingScaleVal = 0
+    widthCap, heightCap = 640, 460
+    pTime = 0
+
     cap = cv2.VideoCapture(video_path)
     frames = []
-
-    widthCap, heightCap = 640, 460
 
     while cap.isOpened():
         ret, img = cap.read()
@@ -56,12 +113,9 @@ def preprocess_video(video_path):
             break
         landmarks_frame = np.zeros_like(img)
 
-        # HandTrackingModule processing
         img = detector.findHands(img)
         lmList = detector.findPosition(img, draw=False)
         if len(lmList) != 0:
-            # Provided code starts here
-            seeYou = True
             for i in range(0, len(lmList) - 1):
                 x1, y1 = lmList[i][1], lmList[i][2]
                 x2, y2 = lmList[i + 1][1], lmList[i + 1][2]
@@ -71,7 +125,7 @@ def preprocess_video(video_path):
             x2, y2 = lmList[8][1], lmList[8][2]
             cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
             lenFingScale = math.hypot(x2 - x1, y2 - y1)
-            cxRel, cyRel = round(cx / widthCap, 2), round((heightCap - cy) / heightCap, 2)
+
             Ax, Ay = lmList[0][1], lmList[0][2]
             Bx, By = lmList[5][1], lmList[5][2]
             Cx, Cy = lmList[17][1], lmList[17][2]
@@ -81,6 +135,7 @@ def preprocess_video(video_path):
 
             cv2.line(landmarks_frame, (Ax, Ay), (Bx, By), (50, 50, 50), 2)
             cv2.line(landmarks_frame, (Ax, Ay), (Cx, Cy), (50, 50, 50), 2)
+
             for lm in lmList:
                 x, y = lm[1], lm[2]
                 cv2.circle(landmarks_frame, (x, y), 3, (255, 255, 255), 2)
@@ -90,7 +145,8 @@ def preprocess_video(video_path):
             if fingScaleVal > 1:
                 fingScaleVal = 1
 
-            cv2.line(landmarks_frame, (x1, y1), (x2, y2), (255 * (1 - fingScaleVal), 0, 255 * fingScaleVal), 2)
+            cv2.line(landmarks_frame, (x1, y1), (x2, y2),
+                     (255 * (1 - fingScaleVal), 0, 255 * fingScaleVal), 2)
             cv2.circle(landmarks_frame, (x1, y1), 2, (0, 255, 0), cv2.FILLED)
             cv2.circle(landmarks_frame, (x2, y2), 2, (0, 255, 0), cv2.FILLED)
 
@@ -100,48 +156,34 @@ def preprocess_video(video_path):
                 cv2.circle(landmarks_frame, (cx, cy), 5, (0, 0, 255), cv2.FILLED)
             else:
                 cv2.circle(landmarks_frame, (cx, cy), 2, (255, 255, 255), cv2.FILLED)
-            # Provided code ends here
 
-            frames.append(landmarks_frame)
-        cv2.imshow("landmarks_frame", landmarks_frame)
-
+        frames.append(landmarks_frame)
 
     cap.release()
     cv2.destroyAllWindows()
 
-    # Normalization
     normalize = transforms.Compose([
         transforms.ToPILImage(),
         transforms.Resize((224, 224)),
         transforms.ToTensor(),
-        transforms.Normalize(mean=[0.0014, 0.0014, 0.0015], std=[0.0117, 0.0119, 0.0123])
+        transforms.Normalize(mean=[0.0014, 0.0014, 0.0015], std=[0.0117, 0.0119, 0.0123]),
     ])
     normalized_frames = torch.stack([normalize(frame) for frame in frames])
     return normalized_frames.permute(1, 0, 2, 3).unsqueeze(0)
 
-# Inference function
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-def infer_gesture(model, video_path, device = device):
+def infer_gesture(model, video_path, device):
+    """Run inference on a single video and return the predicted gesture label."""
     model.to(device)
     processed_video = preprocess_video(video_path).to(device)
     with torch.no_grad():
         outputs = model(processed_video)
     predicted_class_idx = torch.argmax(outputs, dim=1).item()
-    int_to_label = {v: k for k, v in label_to_int.items()}
-    return int_to_label[predicted_class_idx]
+    return INT_TO_LABEL.get(predicted_class_idx, f"Unknown class {predicted_class_idx}")
 
-# labels of the trained gesture classes in order
-# modify according to it
-label_to_int = {'10_Palm_Opening': 0,
-                '11_Palm_Shake': 1,
-                '09_Pulling': 2,
-                '08_Pointing': 3,
-                '16_CCW_Rotation': 4}
-# load trained model
-trained_model_path = 'input path to trained model(gesture_model_V3.pth)'
-# load sample gesture video
-video_path = "input any sample gesture video"
-model = load_model(trained_model_path)
-predicted_gesture = infer_gesture(model, video_path)
-print("Predicted Gesture:", predicted_gesture)
+
+if __name__ == "__main__":
+    args = parse_args()
+    model, device = load_model(args.model_path, num_classes=args.num_classes)
+    predicted_gesture = infer_gesture(model, args.video_path, device)
+    print("Predicted Gesture:", predicted_gesture)
