@@ -1,8 +1,8 @@
 opencv-python>=4.10.0
-mediapipe==0.10.21
+mediapipe>=0.10.21
 numpy>=1.25.0
-torch==2.7.1
-torchvision==0.22.1
+torch>=2.7.1
+torchvision>=0.22.1
 scikit-learn>=1.2.0
 matplotlib>=3.7.0
 pandas>=2.0.0
