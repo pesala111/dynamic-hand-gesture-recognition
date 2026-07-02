@@ -10,13 +10,11 @@ import HandTrackingModule as htm
 import math
 
 
-print("EMMA_eye initialization\n")
 detector = htm.handDetector(detectionCon=1)
 pTime = 0
 seeYou = False
 fingScaleVal = 0
 widthCap, heightCap = 640, 460
-print("EMMA_eye running\n")
 
 input_directory = "/home/pesala/Hand_gesture_dataset/15_CW_Rotation"
 output_directory = "/home/pesala/Hand_gesture_dataset_V3/15_CW_Rotation"
