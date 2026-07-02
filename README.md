@@ -108,38 +108,37 @@ pip install -r requirements.txt
 
 ### Step 1 - Extract Hand Landmarks
 
-Run landmark_extraction.py to extract hand landmarks from raw gesture videos:
+Run `landmark_extraction.py` to extract hand landmarks from raw gesture videos:
 
 ```bash
-python src/landmark_extraction.py
+python src/landmark_extraction.py --input_dir /path/to/raw_gesture_class \
+                                   --output_dir /path/to/landmark_output_class
 ```
-
-Update input_directory and output_directory inside the script to point to your dataset paths.
 
 ### Step 2 - Resample Video Frames
 
-Run frame_extraction.py to normalize all videos to a uniform frame length:
+Run `frame_extraction.py` to filter videos to frames with detected hands only:
 
 ```bash
-python src/frame_extraction.py
+python src/frame_extraction.py --input_dir /path/to/input_gesture_class \
+                                --output_dir /path/to/filtered_output_class
 ```
 
 ### Step 3 - Train the Model
 
-Run recognition_model.py to train the ResNet-3D model on the processed dataset:
+Run `recognition_model.py` to train the ResNet-3D model on the processed dataset:
 
 ```bash
-python src/recognition_model.py
+python src/recognition_model.py --root_dir /path/to/Hand_gesture_dataset
 ```
-
-Update root_dir inside the script to point to your dataset root directory before running.
 
 ### Step 4 - Run Inference
 
-Run inference_model.py to classify gestures from a new video:
+Run `inference_model.py` to classify a gesture from a new video:
 
 ```bash
-python src/inference_model.py
+python src/inference_model.py --model_path gesture_model.pth \
+                               --video_path /path/to/test_video.avi
 ```
 
 ---
