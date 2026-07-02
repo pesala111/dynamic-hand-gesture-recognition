@@ -108,7 +108,7 @@ pip install -r requirements.txt
 
 ### Step 1 - Extract Hand Landmarks
 
-Run `landmark_extraction.py` to extract hand landmarks from raw gesture videos:
+Run `landmark_extraction.py` to extract hand landmarks from raw gesture videos onto a blank background:
 
 ```bash
 python src/landmark_extraction.py --input_dir /path/to/raw_gesture_class \
@@ -117,7 +117,7 @@ python src/landmark_extraction.py --input_dir /path/to/raw_gesture_class \
 
 ### Step 2 - Resample Video Frames
 
-Run `frame_extraction.py` to filter videos to frames with detected hands only:
+Run `frame_extraction.py` to filter videos to only frames where a hand is detected:
 
 ```bash
 python src/frame_extraction.py --input_dir /path/to/input_gesture_class \
@@ -134,7 +134,7 @@ python src/recognition_model.py --root_dir /path/to/Hand_gesture_dataset
 
 ### Step 4 - Run Inference
 
-Run `inference_model.py` to classify a gesture from a new video:
+Run `inference_model.py` to classify a gesture from a recorded video:
 
 ```bash
 python src/inference_model.py --model_path gesture_model.pth \
