@@ -14,6 +14,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torchvision import transforms, models
+from torchvision.models.video import R3D_18_Weights
 from torch.utils.data import DataLoader, TensorDataset
 from sklearn.model_selection import train_test_split
 import torch.optim as optim
@@ -126,7 +127,7 @@ class ResNet3D(nn.Module):
 
     def __init__(self, num_classes, dropout_prob=0.5):
         super(ResNet3D, self).__init__()
-        self.resnet3d = models.video.r3d_18(pretrained=True)
+        self.resnet3d = models.video.r3d_18(weights=R3D_18_Weights.DEFAULT)
         num_features = self.resnet3d.fc.in_features
         self.resnet3d.fc = nn.Sequential(
             nn.Dropout(dropout_prob),
