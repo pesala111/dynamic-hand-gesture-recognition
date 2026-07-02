@@ -39,7 +39,7 @@ def process_videos(input_directory, output_directory):
     """Process all videos in input_directory and write landmark videos to output_directory."""
     os.makedirs(output_directory, exist_ok=True)
 
-    detector = htm.handDetector(detectionCon=1)
+    detector = htm.HandDetector(detectionCon=1)
     pTime = 0
     seeYou = False
     fingScaleVal = 0
