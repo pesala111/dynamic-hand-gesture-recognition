@@ -1,7 +1,12 @@
+"""
+Hand tracking module using MediaPipe.
+Provides the handDetector class for detecting hand landmarks,
+finger positions, and gesture distances from video frames.
+"""
 import cv2
 import mediapipe as mp
-#import time
 import math
+
 
 
 class handDetector():
